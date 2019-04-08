@@ -1,0 +1,195 @@
+;Truc-my Ngo Bao & Pilasilda A.George
+
+(load "evaluator.scm")
+
+;Den globale omgivelsen, omgivelse er en sekvens av ramme(tabell), mens den globale omgivelsen er en enkelt ramme 
+(set! the-global-environment (setup-environment))
+
+;(mc-eval '(+ 1 2) the-global-environment) ; --> 3 
+
+(read-eval-print-loop)
+
+
+
+'--Oppgave1A--
+;(define (foo cond else)
+ ; (cond ((= cond 2) 0)
+  ;      (else (else cond)))) ; -->  1) printer ut prosedyren som skal evalueres og ok. 
+
+(define cond 3) ; -->  2) ok
+
+(define (else x) (/ x 2)) ; --> 3) ok
+
+(define (square x) (* x x)) ; --> 4) ok
+
+;(foo 2 square) ; --> 5) 0
+;(foo 4 square) ; --> 6) 16
+
+;(cond ((= cond 2) 0)
+ ;     (else (else 4))) ; --> 7) 2 
+
+#|Svaret som returneres etter hvert uttrykk er testet og gitt ved kommentar bak hvert uttrykk. I disse oppgavene er det viktig å kunne se forskjell mellom
+cond som er innebyd og cond som kun er definert som en vanlig argument/variabel. Selv om den innbygde conden og conden vi definerer er like så er de lagret i forskjellige plasser
+dette gjør det også mulig for scheme å se forksjellen mellom de to condene. Itillegg tror vi at måten uttrykkene er satt opp på er med på avgjøre hvordan uttrykket skal evalueres,
+hvis da cond eller else er satt opp på måten cond som specialform skal settes opp så vil scheme tolke det utifra dette. På samme måte hvis den ikke
+er satt opp på måten cond eller else er satt opp som specialform vet den da at det ikke er den innebygde formen som blir tatt i bruk, og da vil den også finne
+argumentet som hører til eller variabelen for den slags skyld. 
+
+Uttrykkene fra 1-4 er kun prosedyrene som defineres på forhånd, hvis vi taster disse inn i  REPL for mc-eval så får vi OK som tilbakemelding etter
+hvert av uttrykkene er evaluert dette tolker vi som at prosedyren er godkjent og kan testes opp mot kallet som gjøres ved uttrykk 5-7. 
+
+Uttrykkene fra 5-6 evalueres som vanlige prosedyrer. Årsaken til at uttrykk 5 evalueres til 0 er fordi at vi tidligere har definert en prosedyre foo som sjekker om cond=2 og da ved
+uttrykk 5 så sjekker vi er cond=2 ja det er den og derfor returneres 0. Ved Uttrykk 6, returneres 16 dette er fordi det først sjekkes om
+cond=2 og det er den ikke derfor tar den square av 4 som da er 16.
+Årsaken til at uttrykk 7 evalueres til 2 er fordi at (specialform av typen cond), den først går inn i cond og sjekker om cond=2, cond er tidligere definert ved
+(define cond 3), derfor sjekkes det om 3 = 2, og dette gir false derfor går den heller inn i else delen av koden
+else er tidligere definert som at vi skal dele x på 2 og derfor deles her 4/2 som gir 2.
+ |#
+
+'--Oppgave2A--
+(define primitive-procedures
+  (list (list 'car car)
+        (list 'cdr cdr)
+        (list 'cons cons)
+        (list 'null? null?)
+        (list 'not not)
+        (list '+ +)
+        (list '- -)
+        (list '* *)
+        (list '/ /)
+        (list '= =)
+        (list 'eq? eq?)
+        (list 'equal? equal?)
+        (list 'display 
+              (lambda (x) (display x) 'ok))
+        (list 'newline 
+              (lambda () (newline) 'ok))
+        (list '1+  
+              (lambda (x) (+ x 1)) ;lambda uttrykk som adderer x med 1 
+        (list '1-
+              (lambda (x) (- x 1)))))) ;lambda uttrykk som subtraherer x med 1 
+
+;Ved MC-eval input (1+ 2) --> MC-eval value: 3
+;Ved MC-eval input (1- 2) --> MC-eval value: 1 |#
+;(set! the-global-environment(setup-environment))
+
+
+
+'--Oppgave2B--
+(define (install-primitive! exp name)
+  (define-variable! exp (list 'primitive name) the-global-environment))
+
+ 
+;Kall fra oppgavetekst 
+(install-primitive! 'square (lambda (x) (* x x)))
+(mc-eval '(square 4) the-global-environment)
+
+;Tester ved å skrive inn ('sqaure 4) i replet --> 16 
+
+'--Oppgave3A--
+;Kode fra prekode-evaluator
+(define (special-form? exp)
+  (cond ((quoted? exp) #t)
+        ((assignment? exp) #t)
+        ((definition? exp) #t)
+        ((if? exp) #t)
+        ((lambda? exp) #t)
+        ((begin? exp) #t)
+        ((cond? exp) #t)
+        ((or? exp) #t) ;legger til ny sjekk for or som tester or som special form, oppgave 3a 
+        ((and? exp) #t) ;legger til ny sjekk for and som tester and som special form, oppgave 3a
+        (else #f)))
+
+;For special form and
+(define (and? exp) (tagged-list? exp 'and))
+;For special form or
+(define (or? exp) (tagged-list? exp 'or))
+
+
+;Kode fra prekode-evaluator 
+(define (eval-special-form exp env)
+  (cond ((quoted? exp) (text-of-quotation exp))
+        ((assignment? exp) (eval-assignment exp env))
+        ((definition? exp) (eval-definition exp env))
+        ((if? exp) (eval-if exp env))
+        ((lambda? exp)
+         (make-procedure (lambda-parameters exp)
+                         (lambda-body exp)
+                         env))
+        ((begin? exp) 
+         (eval-sequence (begin-actions exp) env))
+        ((cond? exp) (mc-eval (cond->if exp) env))
+        ((or? exp) (eval-or exp env)) 
+        ((and? exp) (eval-and exp env))))
+
+
+;Prosedyre som evaluerer and 
+(define (eval-and exp env)
+  (define (iter liste)
+    (cond ((null? (cdr liste))
+           (mc-eval (car liste) env))
+          ((true? (mc-eval (car liste) env))
+           (iter (cdr liste)))
+          (else #f)))
+    (iter (cdr exp)))
+
+;Prosedyre som evaluerer or
+(define (eval-or exp env)
+  (define (iter liste)
+    (cond ((null? liste) #f)
+          ((true? (car liste)) #t)
+          (else (iter (cdr liste)))))
+  (iter (cdr exp)))
+
+
+
+
+
+#|
+Tok utgangspunkt i denne fra prekode: evaluator.scm
+(define (assignment? exp)(tagged-list? exp 'set!)) Og lagde en tilsvarende for and og or som skal sjekke
+om det er and eller or som er kalt og returnerer en and hvis and og or hvis or. 
+|#  
+
+
+
+
+
+(mc-eval '(and #t #t)the-global-environment)
+
+;Prosedyre som sjekker om angitt verdi er special form eller ikke |# 
+
+'--Oppgave3B--
+;Prekode fra evaluator
+(define (else? exp) (tagged-list? exp 'else))
+(define (if-else exp) (cadr exp))
+(define (then-consequent exp) (cadddr exp))
+(define (if-alternative exp) (cddddr exp))
+
+(define (eval-if exp env)
+  (cond
+    ((else? exp) (mc-eval (if-else exp) env))
+    ((true? (mc-eval (if-predicate exp) env))
+         (mc-eval (if-consequent exp) env))
+        (else (eval-if (if-alternative exp) env))))
+
+(if #f then #f elsif #t then #t else #f)
+
+'--Oppgave3C--
+'--Oppgave3D--
+'--Oppgave3E--
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

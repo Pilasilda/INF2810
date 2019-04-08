@@ -1,0 +1,83 @@
+(define (avg first . rest)
+  (define (iter sum count liste)
+    (if (null? liste)
+        (/ sum count)
+        (iter (+ sum (car liste))
+              (+ count 1)
+              (cdr liste))))
+  (iter first 1 rest))
+
+
+(avg 1 2 3)
+
+
+
+(define (transform-if test trans seq)
+  (if(null? seq)
+     '()
+     (cons (if (test (car seq))
+               (trans (car seq))
+               (car seq))
+           (transform-if test trans (cdr seq)))))
+
+(transform-if odd? (lambda (x) (+ x 1)) '(1 2 3 4 5 6))
+
+
+(define (transform-if! test trans seq)
+  (define (iter liste)
+    (cond ((null? liste) liste)
+          ((test (car sub))
+           (set-car! sub (trans (car sub)))
+           (iter (cdr sub)))
+          (else (iter (cdr sub)))))
+  (iter seq))
+
+
+(define (same-fringe? tree1 tree2 same?)
+  (define (iter t1 t2)
+    (cond ((and (null? t1) (null? t2)) #t)
+          ((or (null? t1) (null? t2)) #f)
+          ((not (same? (car t1) (car t2))) #f)
+          (else (iter (cdr t1) (cdr t2)))))
+  (iter (fringe tree1) (fringe tree2)))
+
+
+(define (take n l)
+  (if (or (null? l)
+          (zero? n))
+     '()
+     (cons (car l)
+           (take (- n 1) (cdr l) ))))
+(take 3 '(a b c d e))
+
+
+(define (drop n l)
+        (if (or (null? l)
+                (zero? n))
+            l
+            (drop (- n 1) (cdr l))))
+
+(define foo '(a b c d e))
+(drop 1 foo)
+(eq? (cdr foo) (drop 1 foo))
+
+
+
+
+
+
+'---1
+(define (filter pred l)
+  (cond ((null? l) '())
+        ((pred (car l))
+         (cons (car l)
+               (filter pred (cdr l))))
+        (else (filter pred (cdr l)))))
+
+(filter odd? '(2 3 4 5 6))
+
+
+
+
+
+        
